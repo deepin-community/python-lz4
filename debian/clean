@@ -1,0 +1,7 @@
+## Debian CI:
+debian/.gitlab-ci.yml
+
+src/lz4.egg-info/*
+src/*.so
+lz4/version.py
+.eggs/README.txt
