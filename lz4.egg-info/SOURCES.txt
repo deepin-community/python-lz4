@@ -1,10 +1,13 @@
+.gitignore
 LICENSE
 MANIFEST.in
 README.rst
+pyproject.toml
 requirements.txt
 setup.cfg
 setup.py
 tox.ini
+.github/workflows/build_dist.yml
 docs/Makefile
 docs/conf.py
 docs/contributors.rst

@@ -1,11 +1,11 @@
 Source: python-lz4
 Section: python
 Priority: optional
-Standards-Version: 4.5.0
+Standards-Version: 4.6.0
 Maintainer: Dmitry Smirnov <onlyjob@debian.org>
 Uploaders: Debian Python Team <team+python@tracker.debian.org>
 Build-Depends: debhelper-compat (= 12), dh-python, python3-all-dev
-    ,liblz4-dev (>= 0.0~r131~)
+    ,liblz4-dev
     ,pkg-config
 #   ,python3-deprecation
 #   ,python3-future
@@ -13,7 +13,7 @@ Build-Depends: debhelper-compat (= 12), dh-python, python3-all-dev
     ,python3-pytest-runner
     ,python3-setuptools
     ,python3-setuptools-scm
-Homepage: http://pypi.python.org/pypi/lz4
+Homepage: https://github.com/python-lz4/python-lz4
 Vcs-Browser: https://salsa.debian.org/python-team/packages/python-lz4
 Vcs-Git: https://salsa.debian.org/python-team/packages/python-lz4.git
 Testsuite: autopkgtest-pkg-python
