@@ -12,7 +12,8 @@ Copyright:
 License: BSD-3-clause
 
 Files: debian/*
-Copyright: 2014-2021 Dmitry Smirnov <onlyjob@debian.org>
+Copyright:
+    2014-2022 Dmitry Smirnov <onlyjob@debian.org>
 License: GPL-2+ or BSD-3-clause
 
 License: GPL-2+

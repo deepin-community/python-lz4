@@ -219,13 +219,13 @@ class LZ4FrameCompressor(object):
                 block_checksum=self.block_checksum,
                 auto_flush=self.auto_flush,
                 return_bytearray=self.return_bytearray,
-                source_size=source_size
+                source_size=source_size,
             )
             self._started = True
             return result
         else:
             raise RuntimeError(
-                'LZ4FrameCompressor.begin() called after already initialized'
+                "LZ4FrameCompressor.begin() called after already initialized"
             )
 
     def compress(self, data):  # noqa: F811
@@ -293,6 +293,24 @@ class LZ4FrameCompressor(object):
         """
         self._context = None
         self._started = False
+
+    def has_context(self):
+        """Return whether the compression context exists.
+
+        Returns:
+            bool: ``True`` if the compression context exists, ``False``
+                otherwise.
+        """
+        return self._context is not None
+
+    def started(self):
+        """Return whether the compression frame has been started.
+
+        Returns:
+            bool: ``True`` if the compression frame has been started, ``False``
+                otherwise.
+        """
+        return self._started
 
 
 class LZ4FrameDecompressor(object):
@@ -387,6 +405,8 @@ class LZ4FrameDecompressor(object):
             bytes: Uncompressed data
 
         """
+        if not isinstance(data, (bytes, bytearray)):
+            data = memoryview(data).tobytes()
 
         if self._unconsumed_data:
             data = self._unconsumed_data + data
@@ -523,9 +543,8 @@ class LZ4FrameFile(_compression.BaseStream):
             self._buffer = io.BufferedReader(raw)
 
         if self._mode == _MODE_WRITE:
-            self._fp.write(
-                self._compressor.begin(source_size=source_size)
-            )
+            self._source_size = source_size
+            self._fp.write(self._compressor.begin(source_size=source_size))
 
     def close(self):
         """Flush and close the file.
@@ -540,7 +559,7 @@ class LZ4FrameFile(_compression.BaseStream):
                 self._buffer.close()
                 self._buffer = None
             elif self._mode == _MODE_WRITE:
-                self._fp.write(self._compressor.flush())
+                self.flush()
                 self._compressor = None
         finally:
             try:
@@ -617,6 +636,17 @@ class LZ4FrameFile(_compression.BaseStream):
         # returns at least one byte (except at EOF)
         return self._buffer.peek(size)
 
+    def readall(self):
+        chunks = bytearray()
+
+        while True:
+            data = self.read(io.DEFAULT_BUFFER_SIZE)
+            chunks += data
+            if not data:
+                break
+
+        return bytes(chunks)
+
     def read(self, size=-1):
         """Read up to ``size`` uncompressed bytes from the file.
 
@@ -632,6 +662,9 @@ class LZ4FrameFile(_compression.BaseStream):
 
         """
         self._check_can_read()
+
+        if size < 0 and sys.version_info >= (3, 10):
+            return self.readall()
         return self._buffer.read(size)
 
     def read1(self, size=-1):
@@ -679,9 +712,10 @@ class LZ4FrameFile(_compression.BaseStream):
     def write(self, data):
         """Write a bytes object to the file.
 
-        Returns the number of uncompressed bytes written, which is always
-        ``len(data)``. Note that due to buffering, the file on disk may not
-        reflect the data written until close() is called.
+        Returns the number of uncompressed bytes written, which is
+        always the length of data in bytes. Note that due to buffering,
+        the file on disk may not reflect the data written until close()
+        is called.
 
         Args:
             data(bytes): uncompressed data to compress and write to the file
@@ -690,11 +724,33 @@ class LZ4FrameFile(_compression.BaseStream):
             int: the number of uncompressed bytes written to the file
 
         """
+        if isinstance(data, (bytes, bytearray)):
+            length = len(data)
+        else:
+            # accept any data that supports the buffer protocol
+            data = memoryview(data)
+            length = data.nbytes
+
         self._check_can_write()
+
+        if not self._compressor.started():
+            header = self._compressor.begin(source_size=self._source_size)
+            self._fp.write(header)
+
         compressed = self._compressor.compress(data)
         self._fp.write(compressed)
-        self._pos += len(data)
-        return len(data)
+        self._pos += length
+        return length
+
+    def flush(self):
+        """Flush the file, keeping it open.
+
+        May be called more than once without error. The file may continue
+        to be used normally after flushing.
+        """
+        if self.writable() and self._compressor.has_context():
+            self._fp.write(self._compressor.flush())
+        self._fp.flush()
 
     def seek(self, offset, whence=io.SEEK_SET):
         """Change the file position.
@@ -829,6 +885,7 @@ def open(filename, mode="rb",
         block_checksum=block_checksum,
         auto_flush=auto_flush,
         return_bytearray=return_bytearray,
+        source_size=source_size,
     )
 
     if 't' in mode:
